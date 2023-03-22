@@ -1,0 +1,83 @@
+const express = require('express');
+const path = require('path');
+const app = express();
+const bcrypt = require('bcryptjs');
+const hbs = require('hbs');
+
+const port = process.env.PORT || 3000 ;
+require('./db/conn');
+const User = require('./model/schema');
+
+static_path=path.join(__dirname,'../public');
+views_path=path.join(__dirname,'../templates/views');
+partials_path=path.join(__dirname,'../templates/partials');
+
+app.use(express.static(static_path));
+app.set("view engine","hbs");
+app.set("views",views_path);
+hbs.registerPartials(partials_path);
+
+app.use(express.json());
+app.use(express.urlencoded({extended:false}));
+
+app.get("/",(req,res)=>{
+    res.render("index");
+})
+
+app.get("/register",(req,res)=>{
+    res.render("register");
+})
+app.post("/register",async(req,res)=>{
+    try {
+        // console.log(req.body.firstName);
+        // res.send(req.body.firstName);
+        const registerUser = new User({
+            firstName:req.body.firstName,
+            lastName:req.body.lastName,
+            email:req.body.email,
+            password:req.body.password
+        })
+
+        const token = await registerUser.createtoken();
+
+        const registeredUser = await registerUser.save();
+        res.status(201).render("index");
+    } catch (error) {
+        res.status(400).send(error);
+    }
+    // res.render("register");
+})
+
+app.get("/login",(req,res)=>{
+    res.render("login");
+})
+
+app.post("/login",async(req,res)=>{
+    try {
+        const email = req.body.email;
+        const password = req.body.password;
+       
+        const user = await User.findOne({email:email});
+        
+        const token = await user.createtoken();
+        
+        
+        const isMatch = await bcrypt.compare(password,user.password);
+        console.log(isMatch);
+
+        if (isMatch) {
+            res.status(200).render("index");
+        } else {
+            res.send("incorrect password");
+        }
+       
+    } catch (error) {
+        // alert("invalid login")
+        res.status(400).render("invalid");
+    }
+})
+
+app.listen(port,()=>{
+    console.log(`server is listen on ${port}`);
+})
+
